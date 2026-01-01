@@ -1,32 +1,33 @@
 {
-  "name": "tauri-action",
+  "name": "tauri-builder-kit",
   "version": "0.6.0",
-  "description": "Tauri GitHub Action",
+  "description": "Tauri build CLI",
   "contributors": [
     "Tauri Programme within The Commons Conservancy"
   ],
   "license": "MIT",
   "main": "dist/index.js",
   "type": "module",
+  "bin": {
+    "tauri-builder-kit": "dist/index.js"
+  },
   "scripts": {
     "build": "ncc build src/index.ts -o dist",
     "lint": "eslint .",
-    "format": "prettier --write src/** action.yml README.md",
-    "format:check": "prettier --check src/** action.yml README.md"
+    "format": "prettier --write src/** README.md",
+    "format:check": "prettier --check src/** README.md"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tauri-apps/tauri-action.git"
   },
   "keywords": [
-    "actions",
-    "tauri"
+    "tauri",
+    "cli"
   ],
   "minimumReleaseAge": 4320,
   "dependencies": {
-    "@actions/artifact": "5.0.1",
-    "@actions/core": "2.0.1",
-    "@actions/github": "6.0.1",
+    "@octokit/rest": "21.0.1",
     "execa": "9.6.1",
     "find-up-simple": "1.0.1",
     "globby": "16.0.0",

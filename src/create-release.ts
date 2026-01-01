@@ -1,16 +1,16 @@
 import fs from 'node:fs';
 
-import * as core from '@actions/core';
-import { getOctokit } from '@actions/github';
-import type { GitHub } from '@actions/github/lib/utils';
+import { Octokit } from '@octokit/rest';
 
 import {
   commitish,
   draft,
   generateReleaseNotes,
   githubBaseUrl,
+  githubToken,
   owner,
   prerelease,
+  releaseBodyPath,
   repo,
 } from './inputs';
 
@@ -28,13 +28,11 @@ interface GitHubRelease {
   draft: boolean;
 }
 
-function allReleases(
-  github: InstanceType<typeof GitHub>,
-): AsyncIterableIterator<{ data: GitHubRelease[] }> {
+function allReleases(github: Octokit) {
   const params = { per_page: 100, owner, repo };
   return github.paginate.iterator(
     github.rest.repos.listReleases.endpoint.merge(params),
-  );
+  ) as AsyncIterableIterator<{ data: GitHubRelease[] }>;
 }
 
 /// Try to get release by tag. If there's none, releaseName is required to create one.
@@ -43,24 +41,23 @@ export async function getOrCreateRelease(
   releaseName?: string,
   body?: string,
 ): Promise<Release> {
-  if (process.env.GITHUB_TOKEN === undefined) {
-    throw new Error('GITHUB_TOKEN is required');
+  if (!githubToken) {
+    throw new Error('GITHUB_TOKEN (or --github-token) is required');
   }
 
-  // Get authenticated GitHub client (Ocktokit): https://github.com/actions/toolkit/tree/master/packages/github#usage
-  const github = getOctokit(process.env.GITHUB_TOKEN, {
+  const github = new Octokit({
+    auth: githubToken,
     baseUrl: githubBaseUrl,
   });
 
-  const bodyPath = core.getInput('body_path', { required: false });
   let bodyFileContent: string | null = null;
-  if (bodyPath !== '' && !!bodyPath) {
+  if (releaseBodyPath) {
     try {
-      bodyFileContent = fs.readFileSync(bodyPath, { encoding: 'utf8' });
+      bodyFileContent = fs.readFileSync(releaseBodyPath, { encoding: 'utf8' });
     } catch (error) {
       // @ts-expect-error Catching errors in typescript is a headache
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      core.setFailed(error.message);
+      throw new Error(error.message);
     }
   }
 
@@ -71,7 +68,8 @@ export async function getOrCreateRelease(
     if (draft) {
       console.log(`Looking for a draft release with tag ${tagName}...`);
       for await (const response of allReleases(github)) {
-        const releaseWithTag = response.data.find(
+        const releases = response.data as GitHubRelease[];
+        const releaseWithTag = releases.find(
           (release) => release.tag_name === tagName,
         );
         if (releaseWithTag) {
@@ -97,7 +95,7 @@ export async function getOrCreateRelease(
         repo,
         tag: tagName,
       });
-      release = foundRelease.data;
+      release = foundRelease.data as GitHubRelease;
       console.log(`Found release with tag ${tagName}.`);
     }
   } catch (error) {
@@ -116,11 +114,11 @@ export async function getOrCreateRelease(
           body: bodyFileContent || body,
           draft,
           prerelease,
-          target_commitish: commitish,
+          target_commitish: commitish || undefined,
           generate_release_notes: generateReleaseNotes,
         });
 
-        release = createdRelease.data;
+        release = createdRelease.data as GitHubRelease;
       }
     } else {
       console.log(

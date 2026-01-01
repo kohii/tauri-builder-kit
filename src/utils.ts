@@ -14,6 +14,7 @@ import { globbySync } from 'globby';
 
 import { TauriConfig } from './config';
 
+import type { Octokit } from '@octokit/rest';
 import type {
   Artifact,
   CargoConfig,
@@ -22,7 +23,6 @@ import type {
   TargetInfo,
   TargetPlatform,
 } from './types';
-import { GitHub } from '@actions/github/lib/utils';
 import { findUpSync } from 'find-up-simple';
 import { isAndroid, isDebug, isIOS, owner, projectPath, repo } from './inputs';
 
@@ -613,7 +613,7 @@ export async function retry(
 // Helper function to delete a Gitea release asset
 // This is a workaround since Gitea's API is incompatible with the GitHub API
 export function deleteGiteaReleaseAsset(
-  github: InstanceType<typeof GitHub>,
+  github: Octokit,
   releaseId: number,
   assetId: number,
 ) {

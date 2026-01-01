@@ -1,70 +1,72 @@
 import { existsSync } from 'node:fs';
-import { dirname, basename } from 'node:path';
-
-import * as core from '@actions/core';
+import { cp, mkdir } from 'node:fs/promises';
+import { basename, dirname, join } from 'node:path';
 
 import { buildProject } from './build';
 import { getOrCreateRelease } from './create-release';
 import {
+  configArg,
+  outputDir,
+  releaseBody,
+  releaseId as inputReleaseId,
+  releaseName,
+  releaseAssetNamePattern,
+  shouldUploadRelease,
   shouldUploadUpdaterJson,
+  tagName as inputTagName,
+  targetPath,
   isIOS,
-  parsedArgs,
+  owner,
+  repo,
   retryAttempts,
-  shouldUploadWorkflowArtifacts,
 } from './inputs';
 import { uploadAssets as uploadReleaseAssets } from './upload-release-assets';
 import { uploadVersionJSON } from './upload-version-json';
-import { uploadWorkflowArtifacts } from './upload-workflow-artifacts';
-import { execCommand, getInfo, getTargetInfo, retry } from './utils';
+import {
+  execCommand,
+  getAssetName,
+  getInfo,
+  getTargetInfo,
+  retry,
+} from './utils';
 
 import type { Artifact } from './types';
+
+async function copyArtifactsToDir(artifacts: Artifact[], dir: string) {
+  await mkdir(dir, { recursive: true });
+
+  const copied: string[] = [];
+  for (const artifact of artifacts) {
+    const outputName = getAssetName(artifact, releaseAssetNamePattern);
+    const destination = join(dir, outputName);
+    await mkdir(dirname(destination), { recursive: true });
+    await cp(artifact.path, destination, { recursive: true, force: true });
+    copied.push(destination);
+  }
+
+  console.log(`Copied artifacts to ${dir}:\n${copied.join('\n')}`);
+}
 
 async function run(): Promise<void> {
   try {
     if (isIOS && process.platform !== 'darwin') {
-      throw new Error('Building for iOS is only supported on macOS runners.');
+      throw new Error('Building for iOS is only supported on macOS hosts.');
     }
-
-    // inputs that won't be changed are in ./inputs
-    let tagName = core.getInput('tagName').replace('refs/tags/', '');
-    let releaseId = Number(core.getInput('releaseId'));
-    let releaseName = core.getInput('releaseName').replace('refs/tags/', '');
-    let body = core.getInput('releaseBody');
-
-    const targetPath = parsedArgs['target'] as string | undefined;
-    const configArg = parsedArgs['config'] as string | undefined;
 
     const artifacts: Artifact[] = [];
 
     artifacts.push(...(await buildProject()));
 
     if (artifacts.length === 0) {
-      if (releaseId || tagName || shouldUploadWorkflowArtifacts) {
-        throw new Error('No artifacts were found.');
-      } else {
-        console.log(
-          'No artifacts were found. The action was not configured to upload artifacts, therefore this is not handled as an error.',
-        );
-        return;
-      }
+      throw new Error('No artifacts were found.');
     }
 
     console.log(`Found artifacts:\n${artifacts.map((a) => a.path).join('\n')}`);
-    core.setOutput(
-      'artifactPaths',
-      JSON.stringify(artifacts.map((a) => a.path)),
-    );
 
     const targetInfo = getTargetInfo(targetPath);
     const info = getInfo(targetInfo, configArg);
-    core.setOutput('appVersion', info.version);
 
     // Since artifacts are .zip archives we can do this before the .tar.gz step below.
-    if (shouldUploadWorkflowArtifacts) {
-      console.log('uploadWorkflowArtifacts enabled');
-      await uploadWorkflowArtifacts(artifacts);
-    }
-
     // Other steps may benefit from this so we do this whether or not we want to upload it.
     if (targetInfo.platform === 'macos') {
       let i = 0;
@@ -96,63 +98,74 @@ async function run(): Promise<void> {
       }
     }
 
-    // If releaseId is set we'll use this to upload the assets to.
-    // If tagName is set we will try to upload assets to the release associated with the given tagName.
-    // If there's no release for that tag, we require releaseName to create a new one.
-    if (tagName && !releaseId) {
-      const templates = [
-        {
-          key: '__VERSION__',
-          value: info.version,
-        },
-      ];
+    if (shouldUploadRelease) {
+      if (!owner || !repo) {
+        throw new Error(
+          'Both --owner and --repo are required for release upload.',
+        );
+      }
 
-      templates.forEach((template) => {
-        const regex = new RegExp(template.key, 'g');
-        tagName = tagName.replace(regex, template.value);
-        releaseName = releaseName.replace(regex, template.value);
-        body = body.replace(regex, template.value);
-      });
+      let tagName = inputTagName.replace('refs/tags/', '');
+      let releaseId = inputReleaseId;
+      const body = releaseBody.replace(/__VERSION__/g, info.version);
 
-      const releaseData = await getOrCreateRelease(
-        tagName,
-        releaseName || undefined,
-        body,
-      );
-      releaseId = releaseData.id;
-      core.setOutput('releaseUploadUrl', releaseData.uploadUrl);
-      core.setOutput('releaseId', releaseData.id.toString());
-      core.setOutput('releaseHtmlUrl', releaseData.htmlUrl);
-    }
+      if (tagName && !releaseId) {
+        const templates = [
+          {
+            key: '__VERSION__',
+            value: info.version,
+          },
+        ];
 
-    if (releaseId) {
-      await uploadReleaseAssets(releaseId, artifacts, retryAttempts);
+        templates.forEach((template) => {
+          const regex = new RegExp(template.key, 'g');
+          tagName = tagName.replace(regex, template.value);
+        });
 
-      if (shouldUploadUpdaterJson) {
-        // Once we start throwing our own errors in this function we may need some custom retry logic.
-        // We can't retry just the inner asset upload as that may upload an outdated latest.json file.
-        await retry(
-          () =>
-            uploadVersionJSON(
-              info.version,
-              body,
-              tagName,
-              releaseId,
-              artifacts,
-              targetInfo,
-              info.unzippedSigs,
-            ),
-          // since all jobs try to upload this file it tends to conflict often so we want to retry it at least once.
-          retryAttempts === 0 ? 1 : retryAttempts,
+        const resolvedReleaseName = releaseName
+          ? releaseName.replace(/__VERSION__/g, info.version)
+          : undefined;
+        const resolvedBody = body || undefined;
+
+        const releaseData = await getOrCreateRelease(
+          tagName,
+          resolvedReleaseName || undefined,
+          resolvedBody,
+        );
+        releaseId = releaseData.id;
+      }
+
+      if (releaseId) {
+        await uploadReleaseAssets(releaseId, artifacts, retryAttempts);
+
+        if (shouldUploadUpdaterJson) {
+          await retry(
+            () =>
+              uploadVersionJSON(
+                info.version,
+                body,
+                tagName,
+                releaseId,
+                artifacts,
+                targetInfo,
+                info.unzippedSigs,
+              ),
+            // since all jobs try to upload this file it tends to conflict often so we want to retry it at least once.
+            retryAttempts === 0 ? 1 : retryAttempts,
+          );
+        }
+      } else {
+        console.log(
+          'No releaseId or tagName provided, skipping release upload...',
         );
       }
     } else {
-      console.log('No releaseId or tagName provided, skipping all uploads...');
+      await copyArtifactsToDir(artifacts, outputDir);
     }
   } catch (error) {
     // @ts-expect-error Catching errors in typescript is a headache
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    core.setFailed(error.message);
+    console.error(error.message);
+    process.exit(1);
   }
 }
 

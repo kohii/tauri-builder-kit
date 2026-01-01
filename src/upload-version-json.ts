@@ -1,10 +1,11 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, extname, resolve } from 'node:path';
 
-import { getOctokit } from '@actions/github';
+import { Octokit } from '@octokit/rest';
 
 import {
   githubBaseUrl,
+  githubToken,
   isGitea,
   owner,
   releaseAssetNamePattern,
@@ -44,11 +45,12 @@ export async function uploadVersionJSON(
   targetInfo: TargetInfo,
   unzippedSig: boolean,
 ) {
-  if (process.env.GITHUB_TOKEN === undefined) {
-    throw new Error('GITHUB_TOKEN is required');
+  if (!githubToken) {
+    throw new Error('GITHUB_TOKEN (or --github-token) is required');
   }
 
-  const github = getOctokit(process.env.GITHUB_TOKEN, {
+  const github = new Octokit({
+    auth: githubToken,
     baseUrl: githubBaseUrl,
   });
 
