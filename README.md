@@ -21,10 +21,10 @@ When published, the CLI entrypoint is `tauri-builder-kit`.
 
 ## Usage
 
-Build and copy artifacts to a directory (default: `./artifacts`):
+Build artifacts externally (e.g. `tauri build`) and then collect them to a directory (default: `./artifacts`):
 
 ```bash
-tauri-builder-kit --project-path . --output-dir ./artifacts --args "--target x86_64-apple-darwin"
+tauri-builder-kit --project-path . --output-dir ./artifacts --target x86_64-apple-darwin
 ```
 
 Upload artifacts to GitHub Releases (optional):
@@ -38,7 +38,7 @@ GITHUB_TOKEN=... \
   --tag-name app-v__VERSION__ \
   --release-name "App v__VERSION__" \
   --release-body "See the assets to download this version and install." \
-  --args "--target x86_64-apple-darwin"
+  --target x86_64-apple-darwin
 ```
 
 ## Key options
@@ -49,6 +49,9 @@ GITHUB_TOKEN=... \
 - `--tag-name`, `--release-name`, `--release-body`: Release metadata. `__VERSION__` is replaced with the app version.
 - `--release-id`: Upload to an existing release by ID.
 - `--upload-updater-json`: Upload `latest.json` to the release (updater support).
-- `--args`: Extra arguments passed to the Tauri build command.
-- `--tauri-script`: Custom command to invoke the Tauri CLI (e.g. `pnpm tauri`).
+- `--target`: Target triple used to locate artifacts under the target directory.
+- `--config`: Cargo build config to locate artifacts.
+- `--debug`: Use debug artifacts instead of release artifacts.
+- `--profile`: Cargo profile name to locate artifacts.
+- `--tauri-script`: (unused) legacy placeholder. This CLI does not invoke the build.
 - `--mobile`: `android` or `ios`.

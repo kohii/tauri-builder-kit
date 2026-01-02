@@ -55,7 +55,7 @@ async function run(): Promise<void> {
 
     const artifacts: Artifact[] = [];
 
-    artifacts.push(...(await buildProject()));
+    artifacts.push(...buildProject());
 
     if (artifacts.length === 0) {
       throw new Error('No artifacts were found.');

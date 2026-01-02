@@ -1,8 +1,6 @@
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import stringArgv from 'string-argv';
-
 const parsed = parseArgs({
   args: process.argv.slice(2),
   strict: false,
@@ -19,7 +17,6 @@ const parsed = parseArgs({
     releaseBodyPath: { type: 'string' },
     retryAttempts: { type: 'string' },
     tauriScript: { type: 'string' },
-    args: { type: 'string' },
     releaseAssetNamePattern: { type: 'string' },
     uploadUpdaterJson: { type: 'boolean' },
     uploadUpdaterSignatures: { type: 'boolean' },
@@ -86,27 +83,6 @@ export const tauriScript =
 export const releaseAssetNamePattern =
   (parsedValues.releaseAssetNamePattern as string | undefined) || undefined;
 
-const argsInput = (parsedValues.args as string | undefined) || '';
-export const rawArgs = [...stringArgv(argsInput), ...parsed.positionals];
-
-const parsedArgs_ = parseArgs({
-  args: rawArgs,
-  strict: false,
-  allowPositionals: true,
-  options: {
-    target: { type: 'string', short: 't' },
-    config: {
-      type: 'string',
-      short: 'c',
-    },
-    debug: { type: 'boolean', short: 'd' },
-  },
-});
-
-export const parsedArgs = parsedArgs_.values;
-
-export const parsedRunnerArgs = { profile: parsedValues.profile };
-
 export const uploadPlainBinary = !!parsedValues.uploadPlainBinary;
 
 export const owner = (parsedValues.owner as string | undefined) || '';
@@ -131,7 +107,8 @@ export const isAndroid =
   (parsedValues.mobile as string | undefined)?.toLowerCase() === 'android';
 export const isIOS =
   (parsedValues.mobile as string | undefined)?.toLowerCase() === 'ios';
-export const isDebug = !!parsedArgs['debug'];
+export const isDebug = !!parsedValues.debug;
 
-export const targetPath = parsedArgs['target'] as string | undefined;
-export const configArg = parsedArgs['config'] as string | undefined;
+export const targetPath = parsedValues.target as string | undefined;
+export const configArg = parsedValues.config as string | undefined;
+export const profile = parsedValues.profile as string | undefined;

@@ -43,7 +43,7 @@ class Runner {
   }
 }
 
-async function getRunner(): Promise<Runner> {
+function getRunner(): Runner {
   if (tauriScript) {
     console.log('`tauriScript` set. Skipping cli verification.');
     // FIXME: This will also split file paths with spaces.
@@ -65,14 +65,12 @@ async function getRunner(): Promise<Runner> {
   }
 
   console.warn(
-    'Could not detect valid `@tauri-apps/cli` installation. Proceeding to install global npm package...',
+    'Could not detect valid `@tauri-apps/cli` installation in the project.',
   );
 
-  await execCommand('npm', ['install', '-g', `@tauri-apps/cli@v2`], {
-    cwd: undefined,
-  });
-
-  return new Runner('tauri');
+  throw new Error(
+    'Tauri CLI not found. Install @tauri-apps/cli in the project or pass --build-command.',
+  );
 }
 
 export { Runner, getRunner };

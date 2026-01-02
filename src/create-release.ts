@@ -68,7 +68,7 @@ export async function getOrCreateRelease(
     if (draft) {
       console.log(`Looking for a draft release with tag ${tagName}...`);
       for await (const response of allReleases(github)) {
-        const releases = response.data as GitHubRelease[];
+        const releases = response.data;
         const releaseWithTag = releases.find(
           (release) => release.tag_name === tagName,
         );

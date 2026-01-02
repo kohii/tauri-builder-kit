@@ -1,16 +1,13 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { getRunner } from './runner';
 import {
+  configArg,
   isAndroid,
   isDebug,
   isIOS,
-  parsedArgs,
-  parsedRunnerArgs,
-  projectPath,
-  rawArgs,
-  retryAttempts,
+  profile,
+  targetPath,
   uploadPlainBinary,
 } from './inputs';
 import {
@@ -23,13 +20,7 @@ import {
 
 import type { Artifact } from './types';
 
-export async function buildProject(): Promise<Artifact[]> {
-  const runner = await getRunner();
-
-  const targetPath = parsedArgs['target'] as string | undefined;
-  const configArg = parsedArgs['config'] as string | undefined;
-  const profile = parsedRunnerArgs['profile'] as string | undefined;
-
+export function buildProject(): Artifact[] {
   const targetInfo = getTargetInfo(targetPath);
 
   const info = getInfo(targetInfo, configArg);
@@ -40,7 +31,6 @@ export async function buildProject(): Promise<Artifact[]> {
 
   const app = {
     tauriPath: info.tauriPath,
-    runner,
     name: info.name,
     mainBinaryName: info.mainBinaryName,
     version: info.version,
@@ -48,22 +38,7 @@ export async function buildProject(): Promise<Artifact[]> {
     rpmRelease: info.rpmRelease,
   };
 
-  let command = ['build'];
-  if (isAndroid) command = ['android', 'build'];
-  if (isIOS) command = ['ios', 'build'];
-
-  await runner.execTauriCommand(
-    command,
-    rawArgs,
-    projectPath,
-    targetInfo.platform === 'macos'
-      ? {
-          TAURI_BUNDLER_DMG_IGNORE_CI:
-            process.env.TAURI_BUNDLER_DMG_IGNORE_CI ?? 'true',
-        }
-      : undefined,
-    retryAttempts,
-  );
+  // This CLI expects the project to be built externally. It only collects artifacts.
 
   const workspacePath = getWorkspaceDir(app.tauriPath) ?? app.tauriPath;
 
