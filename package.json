@@ -12,7 +12,7 @@
     "tauri-builder-kit": "dist/index.js"
   },
   "scripts": {
-    "build": "ncc build src/index.ts -o dist",
+    "build": "ncc build src/index.ts -o dist && node -e \"require('fs').writeFileSync('dist/index.js', '#!/usr/bin/env node\\n' + require('fs').readFileSync('dist/index.js', 'utf8'))\"",
     "lint": "eslint .",
     "format": "prettier --write src/** README.md",
     "format:check": "prettier --check src/** README.md"
