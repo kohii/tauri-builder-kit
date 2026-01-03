@@ -49,7 +49,7 @@ GITHUB_TOKEN=... \
 - `--tag-name`, `--release-name`, `--release-body`: Release metadata. `__VERSION__` is replaced with the app version.
 - `--release-id`: Upload to an existing release by ID.
 - `--upload-updater-json`: Upload `latest.json` to the release (updater support).
-- `--target`: Target triple used to locate artifacts under the target directory.
+- `--target`: Target triple used to locate artifacts under the target directory. If omitted, the CLI scans the target dir and collects artifacts for all detected targets.
 - `--config`: Cargo build config to locate artifacts.
 - `--debug`: Use debug artifacts instead of release artifacts.
 - `--profile`: Cargo profile name to locate artifacts.
