@@ -82,7 +82,7 @@ export function buildProject(): Artifact[] {
     const info = getInfo(targetInfo, configArg);
 
     const app = {
-      tauriPath: info.tauriPath,
+      tauriPath: info.tauriPath ?? baseInfo.tauriPath,
       name: info.name,
       mainBinaryName: info.mainBinaryName,
       version: info.version,
@@ -90,12 +90,17 @@ export function buildProject(): Artifact[] {
       rpmRelease: info.rpmRelease,
     };
 
+    const tauriPath = app.tauriPath;
+    if (!tauriPath) {
+      throw Error("Couldn't detect path of tauri app");
+    }
+
     let artifactsPath = join(baseTargetDir, candidate, profileDir);
     if (isAndroid) {
-      artifactsPath = join(info.tauriPath, 'gen/android/app/build/outputs/');
+      artifactsPath = join(tauriPath, 'gen/android/app/build/outputs/');
     }
     if (isIOS) {
-      artifactsPath = join(info.tauriPath, 'gen/apple/build/');
+      artifactsPath = join(tauriPath, 'gen/apple/build/');
     }
 
     let candidateArtifacts: Artifact[] = [];

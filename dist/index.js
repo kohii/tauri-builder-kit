@@ -10153,430 +10153,474 @@ which.sync = whichSync
 /* harmony import */ var node_fs__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__nccwpck_require__.n(node_fs__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var node_path__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(6760);
 /* harmony import */ var node_path__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__nccwpck_require__.n(node_path__WEBPACK_IMPORTED_MODULE_1__);
-/* harmony import */ var _inputs__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(3900);
+/* harmony import */ var _inputs__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(6713);
 /* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(3010);
 
 
 
 
+function resolveTargetCandidates(baseTargetDir, profileDir) {
+    const candidates = new Set();
+    if ((0,node_fs__WEBPACK_IMPORTED_MODULE_0__.existsSync)((0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(baseTargetDir, profileDir))) {
+        candidates.add('');
+    }
+    try {
+        const entries = (0,node_fs__WEBPACK_IMPORTED_MODULE_0__.readdirSync)(baseTargetDir, { withFileTypes: true });
+        for (const entry of entries) {
+            if (!entry.isDirectory())
+                continue;
+            if (entry.name.startsWith('.'))
+                continue;
+            if (entry.name === profileDir)
+                continue;
+            if ((0,node_fs__WEBPACK_IMPORTED_MODULE_0__.existsSync)((0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(baseTargetDir, entry.name, profileDir))) {
+                candidates.add(entry.name);
+            }
+        }
+    }
+    catch {
+        // If target dir doesn't exist yet, fall back to the default candidate.
+    }
+    return [...candidates];
+}
 function buildProject() {
-    const targetPath = _inputs__WEBPACK_IMPORTED_MODULE_2__/* .parsedArgs */ .HD['target'];
-    const configArg = _inputs__WEBPACK_IMPORTED_MODULE_2__/* .parsedArgs */ .HD['config'];
-    const profile = _inputs__WEBPACK_IMPORTED_MODULE_2__/* .parsedRunnerArgs */ .Nl['profile'];
-    const targetInfo = (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .getTargetInfo */ .sg)(targetPath);
-    const info = (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .getInfo */ .Vp)(targetInfo, configArg);
-    if (!info.tauriPath) {
+    const profileDir = _inputs__WEBPACK_IMPORTED_MODULE_2__/* .profile */ .ME ? _inputs__WEBPACK_IMPORTED_MODULE_2__/* .profile */ .ME : _inputs__WEBPACK_IMPORTED_MODULE_2__/* .isDebug */ ._o ? 'debug' : 'release';
+    const baseTargetInfo = (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .getTargetInfo */ .sg)(_inputs__WEBPACK_IMPORTED_MODULE_2__/* .targetPath */ .Bd);
+    const baseInfo = (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .getInfo */ .Vp)(baseTargetInfo, _inputs__WEBPACK_IMPORTED_MODULE_2__/* .configArg */ .j5);
+    if (!baseInfo.tauriPath) {
         throw Error("Couldn't detect path of tauri app");
     }
-    const app = {
-        tauriPath: info.tauriPath,
-        name: info.name,
-        mainBinaryName: info.mainBinaryName,
-        version: info.version,
-        wixLanguage: info.wixLanguage,
-        rpmRelease: info.rpmRelease,
-    };
     // This CLI expects the project to be built externally. It only collects artifacts.
-    const workspacePath = (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .getWorkspaceDir */ .Lw)(app.tauriPath) ?? app.tauriPath;
-    let artifactsPath = (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)((0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .getTargetDir */ .d)(workspacePath, info.tauriPath, !!targetPath), targetPath ?? '', profile ? profile : _inputs__WEBPACK_IMPORTED_MODULE_2__/* .isDebug */ ._o ? 'debug' : 'release');
-    if (_inputs__WEBPACK_IMPORTED_MODULE_2__/* .isAndroid */ .m0) {
-        artifactsPath = (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(info.tauriPath, 'gen/android/app/build/outputs/');
-    }
-    if (_inputs__WEBPACK_IMPORTED_MODULE_2__/* .isIOS */ .un) {
-        artifactsPath = (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(info.tauriPath, 'gen/apple/build/');
+    const workspacePath = (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .getWorkspaceDir */ .Lw)(baseInfo.tauriPath) ?? baseInfo.tauriPath;
+    const baseTargetDir = (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .getTargetDir */ .d)(workspacePath, baseInfo.tauriPath, true);
+    let targetCandidates = _inputs__WEBPACK_IMPORTED_MODULE_2__/* .targetPath */ .Bd
+        ? [_inputs__WEBPACK_IMPORTED_MODULE_2__/* .targetPath */ .Bd]
+        : _inputs__WEBPACK_IMPORTED_MODULE_2__/* .isAndroid */ .m0 || _inputs__WEBPACK_IMPORTED_MODULE_2__/* .isIOS */ .un
+            ? ['']
+            : resolveTargetCandidates(baseTargetDir, profileDir);
+    if (targetCandidates.length === 0) {
+        targetCandidates = [''];
     }
     let artifacts = [];
-    let arch = targetInfo.arch;
-    if (targetInfo.platform === 'macos') {
-        if (arch === 'x86_64') {
-            arch = 'x64';
+    for (const candidate of targetCandidates) {
+        const targetInfo = (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .getTargetInfo */ .sg)(candidate || undefined);
+        const info = (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .getInfo */ .Vp)(targetInfo, _inputs__WEBPACK_IMPORTED_MODULE_2__/* .configArg */ .j5);
+        const app = {
+            tauriPath: info.tauriPath ?? baseInfo.tauriPath,
+            name: info.name,
+            mainBinaryName: info.mainBinaryName,
+            version: info.version,
+            wixLanguage: info.wixLanguage,
+            rpmRelease: info.rpmRelease,
+        };
+        const tauriPath = app.tauriPath;
+        if (!tauriPath) {
+            throw Error("Couldn't detect path of tauri app");
         }
-        else if (arch === 'arm64') {
-            arch = 'aarch64';
+        let artifactsPath = (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(baseTargetDir, candidate, profileDir);
+        if (_inputs__WEBPACK_IMPORTED_MODULE_2__/* .isAndroid */ .m0) {
+            artifactsPath = (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(tauriPath, 'gen/android/app/build/outputs/');
         }
-        artifacts = [
-            (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/dmg/${app.name}_${app.version}_${arch}.dmg`),
-                name: app.name,
-                platform: targetInfo.platform,
-                arch,
-                bundle: 'dmg', // could be 'dmg' or 'app' depending on the usecase
-                version: app.version,
-            }),
-            (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/macos/${app.name}.app`),
-                name: app.name,
-                platform: targetInfo.platform,
-                arch,
-                bundle: 'app',
-                version: app.version,
-            }),
-            (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/macos/${app.name}.app.tar.gz`),
-                name: app.name,
-                platform: targetInfo.platform,
-                arch,
-                bundle: 'app',
-                version: app.version,
-            }),
-            (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/macos/${app.name}.app.tar.gz.sig`),
-                name: app.name,
-                platform: targetInfo.platform,
-                arch,
-                bundle: 'app',
-                version: app.version,
-            }),
-        ];
-    }
-    else if (targetInfo.platform === 'windows') {
-        if (arch.startsWith('i')) {
-            arch = 'x86';
+        if (_inputs__WEBPACK_IMPORTED_MODULE_2__/* .isIOS */ .un) {
+            artifactsPath = (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(tauriPath, 'gen/apple/build/');
         }
-        else if (arch === 'aarch64' || arch === 'arm64') {
-            arch = 'arm64';
+        let candidateArtifacts = [];
+        let arch = targetInfo.arch;
+        if (targetInfo.platform === 'macos') {
+            if (arch === 'x86_64') {
+                arch = 'x64';
+            }
+            else if (arch === 'arm64') {
+                arch = 'aarch64';
+            }
+            candidateArtifacts = [
+                (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/dmg/${app.name}_${app.version}_${arch}.dmg`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch,
+                    bundle: 'dmg', // could be 'dmg' or 'app' depending on the usecase
+                    version: app.version,
+                }),
+                (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/macos/${app.name}.app`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch,
+                    bundle: 'app',
+                    version: app.version,
+                }),
+                (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/macos/${app.name}.app.tar.gz`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch,
+                    bundle: 'app',
+                    version: app.version,
+                }),
+                (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/macos/${app.name}.app.tar.gz.sig`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch,
+                    bundle: 'app',
+                    version: app.version,
+                }),
+            ];
         }
-        else {
-            arch = 'x64';
-        }
-        // If multiple Wix languages are specified, multiple installers (.msi) will be made
-        // The .zip and .sig are only generated for the first specified language
-        let langs;
-        if (typeof app.wixLanguage === 'string') {
-            langs = [app.wixLanguage];
-        }
-        else if (Array.isArray(app.wixLanguage)) {
-            langs = app.wixLanguage;
-        }
-        else {
-            langs = Object.keys(app.wixLanguage);
-        }
-        const winArtifacts = [];
-        // wix v2
-        langs.forEach((lang) => {
+        else if (targetInfo.platform === 'windows') {
+            if (arch.startsWith('i')) {
+                arch = 'x86';
+            }
+            else if (arch === 'aarch64' || arch === 'arm64') {
+                arch = 'arm64';
+            }
+            else {
+                arch = 'x64';
+            }
+            // If multiple Wix languages are specified, multiple installers (.msi) will be made
+            // The .zip and .sig are only generated for the first specified language
+            let langs;
+            if (typeof app.wixLanguage === 'string') {
+                langs = [app.wixLanguage];
+            }
+            else if (Array.isArray(app.wixLanguage)) {
+                langs = app.wixLanguage;
+            }
+            else {
+                langs = Object.keys(app.wixLanguage);
+            }
+            const winArtifacts = [];
+            // wix v2
+            langs.forEach((lang) => {
+                winArtifacts.push((0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/msi/${app.name}_${app.version}_${arch}_${lang}.msi`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch,
+                    bundle: 'msi',
+                    version: app.version,
+                }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/msi/${app.name}_${app.version}_${arch}_${lang}.msi.sig`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch,
+                    bundle: 'msi',
+                    version: app.version,
+                }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/msi/${app.name}_${app.version}_${arch}_${lang}.msi.zip`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch,
+                    bundle: 'msi',
+                    version: app.version,
+                }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/msi/${app.name}_${app.version}_${arch}_${lang}.msi.zip.sig`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch,
+                    bundle: 'msi',
+                    version: app.version,
+                }));
+            });
             winArtifacts.push((0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/msi/${app.name}_${app.version}_${arch}_${lang}.msi`),
+                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/nsis/${app.name}_${app.version}_${arch}-setup.exe`),
                 name: app.name,
                 platform: targetInfo.platform,
                 arch,
-                bundle: 'msi',
+                bundle: 'nsis',
                 version: app.version,
             }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/msi/${app.name}_${app.version}_${arch}_${lang}.msi.sig`),
+                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/nsis/${app.name}_${app.version}_${arch}-setup.exe.sig`),
                 name: app.name,
                 platform: targetInfo.platform,
                 arch,
-                bundle: 'msi',
+                bundle: 'nsis',
                 version: app.version,
             }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/msi/${app.name}_${app.version}_${arch}_${lang}.msi.zip`),
+                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/nsis/${app.name}_${app.version}_${arch}-setup.nsis.zip`),
                 name: app.name,
                 platform: targetInfo.platform,
                 arch,
-                bundle: 'msi',
+                bundle: 'nsis',
                 version: app.version,
             }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/msi/${app.name}_${app.version}_${arch}_${lang}.msi.zip.sig`),
+                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/nsis/${app.name}_${app.version}_${arch}-setup.nsis.zip.sig`),
                 name: app.name,
                 platform: targetInfo.platform,
                 arch,
-                bundle: 'msi',
+                bundle: 'nsis',
                 version: app.version,
             }));
-        });
-        winArtifacts.push((0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-            path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/nsis/${app.name}_${app.version}_${arch}-setup.exe`),
-            name: app.name,
-            platform: targetInfo.platform,
-            arch,
-            bundle: 'nsis',
-            version: app.version,
-        }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-            path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/nsis/${app.name}_${app.version}_${arch}-setup.exe.sig`),
-            name: app.name,
-            platform: targetInfo.platform,
-            arch,
-            bundle: 'nsis',
-            version: app.version,
-        }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-            path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/nsis/${app.name}_${app.version}_${arch}-setup.nsis.zip`),
-            name: app.name,
-            platform: targetInfo.platform,
-            arch,
-            bundle: 'nsis',
-            version: app.version,
-        }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-            path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/nsis/${app.name}_${app.version}_${arch}-setup.nsis.zip.sig`),
-            name: app.name,
-            platform: targetInfo.platform,
-            arch,
-            bundle: 'nsis',
-            version: app.version,
-        }));
-        artifacts = winArtifacts;
-    }
-    else if (targetInfo.platform === 'linux') {
-        const debianArch = arch === 'x64' || arch === 'x86_64'
-            ? 'amd64'
-            : arch === 'x32' || arch === 'i686'
-                ? 'i386'
-                : arch === 'arm'
-                    ? 'armhf'
-                    : arch === 'aarch64'
-                        ? 'arm64'
-                        : arch;
-        const rpmArch = arch === 'x64' || arch === 'x86_64'
-            ? 'x86_64'
-            : arch === 'x32' || arch === 'x86' || arch === 'i686'
-                ? 'i386'
-                : arch === 'arm'
-                    ? 'armhfp'
-                    : arch === 'arm64'
-                        ? 'aarch64'
-                        : arch;
-        const appImageArch = arch === 'x64' || arch === 'x86_64'
-            ? 'amd64'
-            : arch === 'x32' || arch === 'i686'
-                ? 'i386'
-                : arch === 'arm' // TODO: Confirm this
-                    ? 'arm'
-                    : arch === 'arm64' // TODO: This is probably a Tauri bug
-                        ? 'aarch64'
-                        : arch;
-        artifacts = [
+            candidateArtifacts = winArtifacts;
+        }
+        else if (targetInfo.platform === 'linux') {
+            const debianArch = arch === 'x64' || arch === 'x86_64'
+                ? 'amd64'
+                : arch === 'x32' || arch === 'i686'
+                    ? 'i386'
+                    : arch === 'arm'
+                        ? 'armhf'
+                        : arch === 'aarch64'
+                            ? 'arm64'
+                            : arch;
+            const rpmArch = arch === 'x64' || arch === 'x86_64'
+                ? 'x86_64'
+                : arch === 'x32' || arch === 'x86' || arch === 'i686'
+                    ? 'i386'
+                    : arch === 'arm'
+                        ? 'armhfp'
+                        : arch === 'arm64'
+                            ? 'aarch64'
+                            : arch;
+            const appImageArch = arch === 'x64' || arch === 'x86_64'
+                ? 'amd64'
+                : arch === 'x32' || arch === 'i686'
+                    ? 'i386'
+                    : arch === 'arm' // TODO: Confirm this
+                        ? 'arm'
+                        : arch === 'arm64' // TODO: This is probably a Tauri bug
+                            ? 'aarch64'
+                            : arch;
+            candidateArtifacts = [
+                (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/deb/${app.name}_${app.version}_${debianArch}.deb`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch: debianArch,
+                    bundle: 'deb',
+                    version: app.version,
+                }),
+                (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/deb/${app.name}_${app.version}_${debianArch}.deb.sig`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch: debianArch,
+                    bundle: 'deb',
+                    version: app.version,
+                }),
+                (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/rpm/${app.name}-${app.version}-${app.rpmRelease}.${rpmArch}.rpm`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch: rpmArch,
+                    bundle: 'rpm',
+                    version: app.version,
+                }),
+                (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/rpm/${app.name}-${app.version}-${app.rpmRelease}.${rpmArch}.rpm.sig`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch: rpmArch,
+                    bundle: 'rpm',
+                    version: app.version,
+                }),
+                (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/appimage/${app.name}_${app.version}_${appImageArch}.AppImage`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch: appImageArch,
+                    bundle: 'appimage',
+                    version: app.version,
+                }),
+                (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/appimage/${app.name}_${app.version}_${appImageArch}.AppImage.sig`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch: appImageArch,
+                    bundle: 'appimage',
+                    version: app.version,
+                }),
+                (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/appimage/${app.name}_${app.version}_${appImageArch}.AppImage.tar.gz`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch: appImageArch,
+                    bundle: 'appimage',
+                    version: app.version,
+                }),
+                (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/appimage/${app.name}_${app.version}_${appImageArch}.AppImage.tar.gz.sig`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch: appImageArch,
+                    bundle: 'appimage',
+                    version: app.version,
+                }),
+            ];
+        }
+        else if (targetInfo.platform === 'android') {
+            const debug = _inputs__WEBPACK_IMPORTED_MODULE_2__/* .isDebug */ ._o ? 'debug' : 'release';
+            const aabDebug = _inputs__WEBPACK_IMPORTED_MODULE_2__/* .isDebug */ ._o ? 'Debug' : 'Release';
+            // TODO: detect (un)signed beforehand
+            if (!_inputs__WEBPACK_IMPORTED_MODULE_2__/* .isDebug */ ._o) {
+                // unsigned release apks
+                candidateArtifacts.push((0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/universal/release/app-universal-release-unsigend.apk`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch: 'universal',
+                    bundle: 'apk',
+                    version: app.version,
+                }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/arm64/release/app-arm64-release-unsigend.apk`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch: 'arm64',
+                    bundle: 'apk',
+                    version: app.version,
+                }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/arm/release/app-arm-release-unsigend.apk`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch: 'universal',
+                    bundle: 'apk',
+                    version: app.version,
+                }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/x86_64/release/app-x86_64-release-unsigend.apk`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch: 'arm',
+                    bundle: 'apk',
+                    version: app.version,
+                }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/x86/release/app-x86-release-unsigend.apk`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch: 'x86',
+                    bundle: 'apk',
+                    version: app.version,
+                }));
+            }
+            candidateArtifacts.push(
+            // signed release apks and debug apks
             (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/deb/${app.name}_${app.version}_${debianArch}.deb`),
-                name: app.name,
-                platform: targetInfo.platform,
-                arch: debianArch,
-                bundle: 'deb',
-                version: app.version,
-            }),
-            (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/deb/${app.name}_${app.version}_${debianArch}.deb.sig`),
-                name: app.name,
-                platform: targetInfo.platform,
-                arch: debianArch,
-                bundle: 'deb',
-                version: app.version,
-            }),
-            (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/rpm/${app.name}-${app.version}-${app.rpmRelease}.${rpmArch}.rpm`),
-                name: app.name,
-                platform: targetInfo.platform,
-                arch: rpmArch,
-                bundle: 'rpm',
-                version: app.version,
-            }),
-            (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/rpm/${app.name}-${app.version}-${app.rpmRelease}.${rpmArch}.rpm.sig`),
-                name: app.name,
-                platform: targetInfo.platform,
-                arch: rpmArch,
-                bundle: 'rpm',
-                version: app.version,
-            }),
-            (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/appimage/${app.name}_${app.version}_${appImageArch}.AppImage`),
-                name: app.name,
-                platform: targetInfo.platform,
-                arch: appImageArch,
-                bundle: 'appimage',
-                version: app.version,
-            }),
-            (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/appimage/${app.name}_${app.version}_${appImageArch}.AppImage.sig`),
-                name: app.name,
-                platform: targetInfo.platform,
-                arch: appImageArch,
-                bundle: 'appimage',
-                version: app.version,
-            }),
-            (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/appimage/${app.name}_${app.version}_${appImageArch}.AppImage.tar.gz`),
-                name: app.name,
-                platform: targetInfo.platform,
-                arch: appImageArch,
-                bundle: 'appimage',
-                version: app.version,
-            }),
-            (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `bundle/appimage/${app.name}_${app.version}_${appImageArch}.AppImage.tar.gz.sig`),
-                name: app.name,
-                platform: targetInfo.platform,
-                arch: appImageArch,
-                bundle: 'appimage',
-                version: app.version,
-            }),
-        ];
-    }
-    else if (targetInfo.platform === 'android') {
-        const debug = _inputs__WEBPACK_IMPORTED_MODULE_2__/* .isDebug */ ._o ? 'debug' : 'release';
-        const aabDebug = _inputs__WEBPACK_IMPORTED_MODULE_2__/* .isDebug */ ._o ? 'Debug' : 'Release';
-        // TODO: detect (un)signed beforehand
-        if (!_inputs__WEBPACK_IMPORTED_MODULE_2__/* .isDebug */ ._o) {
-            // unsigned release apks
-            artifacts.push((0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/universal/release/app-universal-release-unsigend.apk`),
+                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/universal/${debug}/app-universal-${debug}.apk`),
                 name: app.name,
                 platform: targetInfo.platform,
                 arch: 'universal',
                 bundle: 'apk',
                 version: app.version,
             }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/arm64/release/app-arm64-release-unsigend.apk`),
+                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/arm64/${debug}/app-arm64-${debug}.apk`),
                 name: app.name,
                 platform: targetInfo.platform,
                 arch: 'arm64',
                 bundle: 'apk',
                 version: app.version,
             }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/arm/release/app-arm-release-unsigend.apk`),
+                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/arm/${debug}/app-arm-${debug}.apk`),
                 name: app.name,
                 platform: targetInfo.platform,
                 arch: 'universal',
                 bundle: 'apk',
                 version: app.version,
             }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/x86_64/release/app-x86_64-release-unsigend.apk`),
+                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/x86_64/${debug}/app-x86_64-${debug}.apk`),
                 name: app.name,
                 platform: targetInfo.platform,
                 arch: 'arm',
                 bundle: 'apk',
                 version: app.version,
             }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/x86/release/app-x86-release-unsigend.apk`),
+                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/x86/${debug}/app-x86-${debug}.apk`),
                 name: app.name,
                 platform: targetInfo.platform,
                 arch: 'x86',
                 bundle: 'apk',
                 version: app.version,
-            }));
-        }
-        artifacts.push(
-        // signed release apks and debug apks
-        (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-            path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/universal/${debug}/app-universal-${debug}.apk`),
-            name: app.name,
-            platform: targetInfo.platform,
-            arch: 'universal',
-            bundle: 'apk',
-            version: app.version,
-        }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-            path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/arm64/${debug}/app-arm64-${debug}.apk`),
-            name: app.name,
-            platform: targetInfo.platform,
-            arch: 'arm64',
-            bundle: 'apk',
-            version: app.version,
-        }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-            path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/arm/${debug}/app-arm-${debug}.apk`),
-            name: app.name,
-            platform: targetInfo.platform,
-            arch: 'universal',
-            bundle: 'apk',
-            version: app.version,
-        }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-            path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/x86_64/${debug}/app-x86_64-${debug}.apk`),
-            name: app.name,
-            platform: targetInfo.platform,
-            arch: 'arm',
-            bundle: 'apk',
-            version: app.version,
-        }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-            path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `apk/x86/${debug}/app-x86-${debug}.apk`),
-            name: app.name,
-            platform: targetInfo.platform,
-            arch: 'x86',
-            bundle: 'apk',
-            version: app.version,
-        }), 
-        //
-        // aabs
-        //
-        (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-            path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `/bundle/universal${aabDebug}/app-universal-${debug}.aab`),
-            name: app.name,
-            platform: targetInfo.platform,
-            arch: 'universal',
-            bundle: 'aab',
-            version: app.version,
-        }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-            path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `/bundle/arm64${aabDebug}/app-arm64-${debug}.aab`),
-            name: app.name,
-            platform: targetInfo.platform,
-            arch: 'arm64',
-            bundle: 'aab',
-            version: app.version,
-        }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-            path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `/bundle/arm${aabDebug}/app-arm-${debug}.aab`),
-            name: app.name,
-            platform: targetInfo.platform,
-            arch: 'arm',
-            bundle: 'aab',
-            version: app.version,
-        }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-            path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `/bundle/x86_64${aabDebug}/app-x86_64-${debug}.aab`),
-            name: app.name,
-            platform: targetInfo.platform,
-            arch: 'x86_64',
-            bundle: 'aab',
-            version: app.version,
-        }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-            path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `/bundle/x86${aabDebug}/app-x86-${debug}.aab`),
-            name: app.name,
-            platform: targetInfo.platform,
-            arch: 'x86',
-            bundle: 'aab',
-            version: app.version,
-        }));
-    }
-    else if (targetInfo.platform === 'ios') {
-        // TODO: Confirm that info.name is correct.
-        artifacts = [
+            }), 
+            //
+            // aabs
+            //
             (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `x86_64/${app.name}.ipa`),
+                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `/bundle/universal${aabDebug}/app-universal-${debug}.aab`),
                 name: app.name,
                 platform: targetInfo.platform,
-                arch: 'x86_64',
-                bundle: 'ipa',
+                arch: 'universal',
+                bundle: 'aab',
                 version: app.version,
-            }),
-            (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `arm64/${app.name}.ipa`),
+            }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `/bundle/arm64${aabDebug}/app-arm64-${debug}.aab`),
                 name: app.name,
                 platform: targetInfo.platform,
                 arch: 'arm64',
-                bundle: 'ipa',
+                bundle: 'aab',
                 version: app.version,
-            }),
-            (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `arm64-sim/${app.name}.ipa`),
+            }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `/bundle/arm${aabDebug}/app-arm-${debug}.aab`),
                 name: app.name,
                 platform: targetInfo.platform,
-                arch: 'arm64-sim',
-                bundle: 'ipa',
+                arch: 'arm',
+                bundle: 'aab',
                 version: app.version,
-            }),
-        ];
+            }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `/bundle/x86_64${aabDebug}/app-x86_64-${debug}.aab`),
+                name: app.name,
+                platform: targetInfo.platform,
+                arch: 'x86_64',
+                bundle: 'aab',
+                version: app.version,
+            }), (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `/bundle/x86${aabDebug}/app-x86-${debug}.aab`),
+                name: app.name,
+                platform: targetInfo.platform,
+                arch: 'x86',
+                bundle: 'aab',
+                version: app.version,
+            }));
+        }
+        else if (targetInfo.platform === 'ios') {
+            // TODO: Confirm that info.name is correct.
+            candidateArtifacts = [
+                (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `x86_64/${app.name}.ipa`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch: 'x86_64',
+                    bundle: 'ipa',
+                    version: app.version,
+                }),
+                (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `arm64/${app.name}.ipa`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch: 'arm64',
+                    bundle: 'ipa',
+                    version: app.version,
+                }),
+                (0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                    path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `arm64-sim/${app.name}.ipa`),
+                    name: app.name,
+                    platform: targetInfo.platform,
+                    arch: 'arm64-sim',
+                    bundle: 'ipa',
+                    version: app.version,
+                }),
+            ];
+        }
+        else {
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+            console.error(`Unhandled target platform: "${targetInfo.platform}"`);
+        }
+        if (_inputs__WEBPACK_IMPORTED_MODULE_2__/* .uploadPlainBinary */ .pm) {
+            const ext = targetInfo.platform === 'windows' ? '.exe' : '';
+            candidateArtifacts.push((0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
+                path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `${app.mainBinaryName}${ext}`),
+                name: 'binary', // app.mainBinaryName,
+                bundle: 'bin',
+                platform: targetInfo.platform,
+                arch,
+                version: app.version,
+            }));
+        }
+        const label = candidate || 'native';
+        console.log(`Looking for artifacts (${label}) in:\n${candidateArtifacts
+            .map((a) => a.path)
+            .join('\n')}`);
+        artifacts.push(...candidateArtifacts.filter((p) => (0,node_fs__WEBPACK_IMPORTED_MODULE_0__.existsSync)(p.path)));
     }
-    else {
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        console.error(`Unhandled target platform: "${targetInfo.platform}"`);
-    }
-    if (_inputs__WEBPACK_IMPORTED_MODULE_2__/* .uploadPlainBinary */ .pm) {
-        const ext = targetInfo.platform === 'windows' ? '.exe' : '';
-        artifacts.push((0,_utils__WEBPACK_IMPORTED_MODULE_3__/* .createArtifact */ .Dg)({
-            path: (0,node_path__WEBPACK_IMPORTED_MODULE_1__.join)(artifactsPath, `${app.mainBinaryName}${ext}`),
-            name: 'binary', // app.mainBinaryName,
-            bundle: 'bin',
-            platform: targetInfo.platform,
-            arch,
-            version: app.version,
-        }));
-    }
-    console.log(`Looking for artifacts in:\n${artifacts.map((a) => a.path).join('\n')}`);
-    return artifacts.filter((p) => (0,node_fs__WEBPACK_IMPORTED_MODULE_0__.existsSync)(p.path));
+    return artifacts;
 }
 
 
@@ -10591,7 +10635,7 @@ function buildProject() {
 /* harmony import */ var node_fs__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(3024);
 /* harmony import */ var node_fs__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__nccwpck_require__.n(node_fs__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var _octokit_rest__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(3755);
-/* harmony import */ var _inputs__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(3900);
+/* harmony import */ var _inputs__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(6713);
 
 
 
@@ -10706,7 +10750,7 @@ __nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__, __we
 /* harmony import */ var node_path__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__nccwpck_require__.n(node_path__WEBPACK_IMPORTED_MODULE_2__);
 /* harmony import */ var _build__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(218);
 /* harmony import */ var _create_release__WEBPACK_IMPORTED_MODULE_4__ = __nccwpck_require__(644);
-/* harmony import */ var _inputs__WEBPACK_IMPORTED_MODULE_5__ = __nccwpck_require__(3900);
+/* harmony import */ var _inputs__WEBPACK_IMPORTED_MODULE_5__ = __nccwpck_require__(6713);
 /* harmony import */ var _upload_release_assets__WEBPACK_IMPORTED_MODULE_6__ = __nccwpck_require__(1103);
 /* harmony import */ var _upload_version_json__WEBPACK_IMPORTED_MODULE_7__ = __nccwpck_require__(6715);
 /* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_8__ = __nccwpck_require__(3010);
@@ -10825,98 +10869,48 @@ __webpack_async_result__();
 
 /***/ }),
 
-/***/ 3900:
+/***/ 6713:
 /***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
 
-
-// EXPORTS
-__nccwpck_require__.d(__webpack_exports__, {
-  Un: () => (/* binding */ commitish),
-  j5: () => (/* binding */ configArg),
-  K4: () => (/* binding */ draft),
-  yK: () => (/* binding */ generateReleaseNotes),
-  qu: () => (/* binding */ githubBaseUrl),
-  bU: () => (/* binding */ githubToken),
-  m0: () => (/* binding */ isAndroid),
-  _o: () => (/* binding */ isDebug),
-  Hd: () => (/* binding */ isGitea),
-  un: () => (/* binding */ isIOS),
-  T2: () => (/* binding */ outputDir),
-  eC: () => (/* binding */ owner),
-  HD: () => (/* binding */ parsedArgs),
-  Nl: () => (/* binding */ parsedRunnerArgs),
-  Rt: () => (/* binding */ prerelease),
-  DZ: () => (/* binding */ projectPath),
-  dw: () => (/* binding */ releaseAssetNamePattern),
-  ul: () => (/* binding */ releaseBody),
-  $D: () => (/* binding */ releaseBodyPath),
-  Bf: () => (/* binding */ releaseId),
-  "do": () => (/* binding */ releaseName),
-  LB: () => (/* binding */ repo),
-  z: () => (/* binding */ retryAttempts),
-  EL: () => (/* binding */ shouldUploadRelease),
-  Qe: () => (/* binding */ shouldUploadUpdaterJson),
-  wZ: () => (/* binding */ tagName),
-  Bd: () => (/* binding */ targetPath),
-  ZQ: () => (/* binding */ updaterJsonPreferNsis),
-  pm: () => (/* binding */ uploadPlainBinary),
-  wy: () => (/* binding */ uploadUpdaterSignatures)
-});
-
-// UNUSED EXPORTS: rawArgs, tauriScript
-
-// EXTERNAL MODULE: external "node:path"
-var external_node_path_ = __nccwpck_require__(6760);
-// EXTERNAL MODULE: external "node:util"
-var external_node_util_ = __nccwpck_require__(7975);
-;// CONCATENATED MODULE: ./node_modules/.pnpm/string-argv@0.3.2/node_modules/string-argv/index.js
-
-function parseArgsStringToArgv(value, env, file) {
-    // ([^\s'"]([^\s'"]*(['"])([^\3]*?)\3)+[^\s'"]*) Matches nested quotes until the first space outside of quotes
-    // [^\s'"]+ or Match if not a space ' or "
-    // (['"])([^\5]*?)\5 or Match "quoted text" without quotes
-    // `\3` and `\5` are a backreference to the quote style (' or ") captured
-    var myRegexp = /([^\s'"]([^\s'"]*(['"])([^\3]*?)\3)+[^\s'"]*)|[^\s'"]+|(['"])([^\5]*?)\5/gi;
-    var myString = value;
-    var myArray = [];
-    if (env) {
-        myArray.push(env);
-    }
-    if (file) {
-        myArray.push(file);
-    }
-    var match;
-    do {
-        // Each call to exec returns the next regex match as an array
-        match = myRegexp.exec(myString);
-        if (match !== null) {
-            // Index 1 in the array is the captured group if it exists
-            // Index 0 is the matched text, which we use if no captured group exists
-            myArray.push(firstString(match[1], match[6], match[0]));
-        }
-    } while (match !== null);
-    return myArray;
-}
-// Accepts any number of arguments, and returns the first one that is a string
-// (even an empty string)
-function firstString() {
-    var args = [];
-    for (var _i = 0; _i < arguments.length; _i++) {
-        args[_i] = arguments[_i];
-    }
-    for (var i = 0; i < args.length; i++) {
-        var arg = args[i];
-        if (typeof arg === "string") {
-            return arg;
-        }
-    }
-}
-
-;// CONCATENATED MODULE: ./src/inputs.ts
+/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
+/* harmony export */   $D: () => (/* binding */ releaseBodyPath),
+/* harmony export */   Bd: () => (/* binding */ targetPath),
+/* harmony export */   Bf: () => (/* binding */ releaseId),
+/* harmony export */   DZ: () => (/* binding */ projectPath),
+/* harmony export */   EL: () => (/* binding */ shouldUploadRelease),
+/* harmony export */   Hd: () => (/* binding */ isGitea),
+/* harmony export */   K4: () => (/* binding */ draft),
+/* harmony export */   LB: () => (/* binding */ repo),
+/* harmony export */   ME: () => (/* binding */ profile),
+/* harmony export */   Qe: () => (/* binding */ shouldUploadUpdaterJson),
+/* harmony export */   Rt: () => (/* binding */ prerelease),
+/* harmony export */   T2: () => (/* binding */ outputDir),
+/* harmony export */   Un: () => (/* binding */ commitish),
+/* harmony export */   ZQ: () => (/* binding */ updaterJsonPreferNsis),
+/* harmony export */   _o: () => (/* binding */ isDebug),
+/* harmony export */   bU: () => (/* binding */ githubToken),
+/* harmony export */   "do": () => (/* binding */ releaseName),
+/* harmony export */   dw: () => (/* binding */ releaseAssetNamePattern),
+/* harmony export */   eC: () => (/* binding */ owner),
+/* harmony export */   j5: () => (/* binding */ configArg),
+/* harmony export */   m0: () => (/* binding */ isAndroid),
+/* harmony export */   pm: () => (/* binding */ uploadPlainBinary),
+/* harmony export */   qu: () => (/* binding */ githubBaseUrl),
+/* harmony export */   ul: () => (/* binding */ releaseBody),
+/* harmony export */   un: () => (/* binding */ isIOS),
+/* harmony export */   wZ: () => (/* binding */ tagName),
+/* harmony export */   wy: () => (/* binding */ uploadUpdaterSignatures),
+/* harmony export */   yK: () => (/* binding */ generateReleaseNotes),
+/* harmony export */   z: () => (/* binding */ retryAttempts)
+/* harmony export */ });
+/* unused harmony export tauriScript */
+/* harmony import */ var node_path__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(6760);
+/* harmony import */ var node_path__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__nccwpck_require__.n(node_path__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var node_util__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(7975);
+/* harmony import */ var node_util__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__nccwpck_require__.n(node_util__WEBPACK_IMPORTED_MODULE_1__);
 
 
-
-const parsed = (0,external_node_util_.parseArgs)({
+const parsed = (0,node_util__WEBPACK_IMPORTED_MODULE_1__.parseArgs)({
     args: process.argv.slice(2),
     strict: false,
     allowPositionals: true,
@@ -10932,7 +10926,6 @@ const parsed = (0,external_node_util_.parseArgs)({
         releaseBodyPath: { type: 'string' },
         retryAttempts: { type: 'string' },
         tauriScript: { type: 'string' },
-        args: { type: 'string' },
         releaseAssetNamePattern: { type: 'string' },
         uploadUpdaterJson: { type: 'boolean' },
         uploadUpdaterSignatures: { type: 'boolean' },
@@ -10957,8 +10950,8 @@ const parsedValues = parsed.values;
 function getString(value, fallback = '') {
     return typeof value === 'string' && value.length > 0 ? value : fallback;
 }
-const projectPath = (0,external_node_path_.resolve)(process.cwd(), getString(parsedValues.projectPath, '.'));
-const outputDir = (0,external_node_path_.resolve)(process.cwd(), getString(parsedValues.outputDir, 'artifacts'));
+const projectPath = (0,node_path__WEBPACK_IMPORTED_MODULE_0__.resolve)(process.cwd(), getString(parsedValues.projectPath, '.'));
+const outputDir = (0,node_path__WEBPACK_IMPORTED_MODULE_0__.resolve)(process.cwd(), getString(parsedValues.outputDir, 'artifacts'));
 const shouldUploadRelease = !!parsedValues.uploadRelease;
 const githubToken = parsedValues.githubToken || process.env.GITHUB_TOKEN || '';
 const tagName = parsedValues.tagName || '';
@@ -10972,23 +10965,6 @@ const updaterJsonPreferNsis = !!parsedValues.updaterJsonPreferNsis;
 const retryAttempts = parseInt(parsedValues.retryAttempts || '0', 10);
 const tauriScript = parsedValues.tauriScript || undefined;
 const releaseAssetNamePattern = parsedValues.releaseAssetNamePattern || undefined;
-const argsInput = parsedValues.args || '';
-const rawArgs = [...parseArgsStringToArgv(argsInput), ...parsed.positionals];
-const parsedArgs_ = (0,external_node_util_.parseArgs)({
-    args: rawArgs,
-    strict: false,
-    allowPositionals: true,
-    options: {
-        target: { type: 'string', short: 't' },
-        config: {
-            type: 'string',
-            short: 'c',
-        },
-        debug: { type: 'boolean', short: 'd' },
-    },
-});
-const parsedArgs = parsedArgs_.values;
-const parsedRunnerArgs = { profile: parsedValues.profile };
 const uploadPlainBinary = !!parsedValues.uploadPlainBinary;
 const owner = parsedValues.owner || '';
 const repo = parsedValues.repo || '';
@@ -11002,9 +10978,10 @@ const isGitea = !!parsedValues.isGitea;
 const generateReleaseNotes = !!parsedValues.generateReleaseNotes;
 const isAndroid = parsedValues.mobile?.toLowerCase() === 'android';
 const isIOS = parsedValues.mobile?.toLowerCase() === 'ios';
-const isDebug = !!parsedArgs['debug'];
-const targetPath = parsedArgs['target'];
-const configArg = parsedArgs['config'];
+const isDebug = !!parsedValues.debug;
+const targetPath = parsedValues.target;
+const configArg = parsedValues.config;
+const profile = parsedValues.profile;
 
 
 /***/ }),
@@ -11019,7 +10996,7 @@ const configArg = parsedArgs['config'];
 /* harmony import */ var node_fs__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__nccwpck_require__.n(node_fs__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var _octokit_rest__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(3755);
 /* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(3010);
-/* harmony import */ var _inputs__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(3900);
+/* harmony import */ var _inputs__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(6713);
 
 
 
@@ -11095,7 +11072,7 @@ async function uploadAssets(releaseId, assets, retryAttempts) {
 /* harmony import */ var node_path__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(6760);
 /* harmony import */ var node_path__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__nccwpck_require__.n(node_path__WEBPACK_IMPORTED_MODULE_1__);
 /* harmony import */ var _octokit_rest__WEBPACK_IMPORTED_MODULE_5__ = __nccwpck_require__(3755);
-/* harmony import */ var _inputs__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(3900);
+/* harmony import */ var _inputs__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(6713);
 /* harmony import */ var _upload_release_assets__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(1103);
 /* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_4__ = __nccwpck_require__(3010);
 
@@ -22949,8 +22926,8 @@ class TauriConfig {
     }
 }
 
-// EXTERNAL MODULE: ./src/inputs.ts + 1 modules
-var inputs = __nccwpck_require__(3900);
+// EXTERNAL MODULE: ./src/inputs.ts
+var inputs = __nccwpck_require__(6713);
 ;// CONCATENATED MODULE: ./src/utils.ts
 
 
